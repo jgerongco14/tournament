@@ -100,12 +100,21 @@ app.get('/api/tournaments/:id/matches', (req, res) => {
 
 app.put('/api/tournaments/:id/matches/:matchId', (req, res) => {
   try {
+    console.log('Submitting match result:', {
+      tournamentId: req.params.id,
+      matchId: req.params.matchId,
+      body: req.body
+    });
+    
     const { score1, score2, winner } = req.body;
     const tournament = tournamentManager.submitMatchResult(req.params.id, req.params.matchId, {
       score1, score2, winner
     });
+    
+    console.log('Match result submitted successfully');
     res.json({ success: true, data: tournament });
   } catch (error) {
+    console.error('Error submitting match result:', error.message);
     res.status(400).json({ success: false, error: error.message });
   }
 });

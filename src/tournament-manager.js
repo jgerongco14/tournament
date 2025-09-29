@@ -310,37 +310,44 @@ class TournamentManager {
   }
 
   submitMatchResult(tournamentId, matchId, result) {
+    console.log('Finding match:', matchId, 'in tournament:', tournamentId);
+    
     const tournament = this.tournaments.get(tournamentId);
     if (!tournament) {
       throw new Error('Tournament not found');
     }
 
-    // Try to find match by internal ID first (for backward compatibility)
-    let match = tournament.matches.find(m => m.internalId === matchId);
-    
-    // If not found, try by readable match ID
-    if (!match) {
-      match = tournament.matches.find(m => m.id === matchId);
-    }
-    
-    // If still not found, try the old UUID system
-    if (!match) {
-      match = tournament.matches.find(m => m.id === matchId || m.internalId === matchId);
-    }
+    // Find match - try both readable ID and internal ID
+    let match = tournament.matches.find(m => m.id === matchId || m.internalId === matchId);
 
     if (!match) {
-      throw new Error('Match not found');
+      console.log('Available matches:', tournament.matches.map(m => ({ id: m.id, internalId: m.internalId })));
+      throw new Error(`Match not found: ${matchId}`);
     }
+
+    console.log('Found match:', match.id, 'Status:', match.status);
 
     if (match.status === 'completed') {
       throw new Error('Match already completed');
     }
 
+    // Validate winner
+    if (!match.participant1 || !match.participant2) {
+      throw new Error('Match does not have both participants assigned');
+    }
+
+    const validWinner = match.participant1.id === result.winner || match.participant2.id === result.winner;
+    if (!validWinner) {
+      throw new Error('Winner must be one of the match participants');
+    }
+
     // Update match result
     match.score1 = result.score1;
     match.score2 = result.score2;
-    match.winner = result.winner;
+    match.winner = match.participant1.id === result.winner ? match.participant1 : match.participant2;
     match.status = 'completed';
+
+    console.log('Match updated:', match.id, 'Winner:', match.winner.name);
 
     // For elimination tournaments, advance winner to next round
     if (tournament.format === 'single-elimination' || tournament.format === 'double-elimination') {

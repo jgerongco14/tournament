@@ -583,9 +583,29 @@ class TournamentApp {
             return;
         }
 
-        const winner = score1 > score2 ? 
-            this.currentTournament.matches.find(m => m.id === this.currentMatchId).participant1 :
-            this.currentTournament.matches.find(m => m.id === this.currentMatchId).participant2;
+        // Find the match from the bracket rounds
+        let currentMatch = null;
+        for (const round of this.currentTournament.rounds) {
+            for (const match of round.matches) {
+                if (match.id === this.currentMatchId) {
+                    currentMatch = match;
+                    break;
+                }
+            }
+            if (currentMatch) break;
+        }
+
+        if (!currentMatch) {
+            alert('Match not found');
+            return;
+        }
+
+        const winner = score1 > score2 ? currentMatch.participant1 : currentMatch.participant2;
+
+        if (!winner || !winner.id) {
+            alert('Error: Unable to determine winner');
+            return;
+        }
 
         this.showLoading(true);
 
@@ -607,7 +627,7 @@ class TournamentApp {
             if (result.success) {
                 alert('Match result submitted successfully!');
                 this.closeModal();
-                this.loadBracket();
+                this.loadBracket(); // Reload to show updated bracket
             } else {
                 alert('Error submitting result: ' + result.error);
             }
