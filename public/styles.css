@@ -583,6 +583,32 @@ body {
     background: #fffdf5;
 }
 
+.match-header {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.match-id {
+    font-weight: bold;
+    color: #6c757d;
+}
+
+.advances-to {
+    color: #007bff;
+    font-size: 0.8rem;
+}
+
+.final-match {
+    color: #dc3545;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
 .bracket-participant {
     display: flex;
     justify-content: space-between;
@@ -1243,4 +1269,129 @@ body {
 
 .mb-20 {
     margin-bottom: 20px;
+}
+
+/* Champion Display */
+.tournament-champion {
+    margin-bottom: 30px;
+}
+
+.champion-celebration {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.champion-celebration::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255,255,255,0.1) 10px,
+        rgba(255,255,255,0.1) 20px
+    );
+    animation: champSlide 20s linear infinite;
+}
+
+@keyframes champSlide {
+    0% { transform: translateX(-50%) translateY(-50%) rotate(0deg); }
+    100% { transform: translateX(-50%) translateY(-50%) rotate(360deg); }
+}
+
+.champion-crown {
+    font-size: 4rem;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 2;
+    animation: crownBounce 2s ease-in-out infinite;
+}
+
+@keyframes crownBounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-10px); }
+    60% { transform: translateY(-5px); }
+}
+
+.champion-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    position: relative;
+    z-index: 2;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.champion-name {
+    font-size: 3rem;
+    font-weight: 900;
+    margin-bottom: 15px;
+    position: relative;
+    z-index: 2;
+    text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+    background: linear-gradient(45deg, #fff, #f0f0f0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.champion-details {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 2;
+}
+
+.champion-seed, .champion-tournament {
+    background: rgba(255,255,255,0.2);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+.champion-celebration-text {
+    font-size: 1.5rem;
+    font-weight: bold;
+    position: relative;
+    z-index: 2;
+    animation: celebrationPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes celebrationPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Responsive champion display */
+@media (max-width: 768px) {
+    .champion-name {
+        font-size: 2rem;
+    }
+    
+    .champion-title {
+        font-size: 2rem;
+    }
+    
+    .champion-details {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .champion-crown {
+        font-size: 3rem;
+    }
 }

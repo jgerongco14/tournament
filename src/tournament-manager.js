@@ -26,6 +26,7 @@ class TournamentManager {
       matches: [],
       rounds: [],
       status: 'pending', // 'pending', 'active', 'completed'
+      champion: null, // Will be set when tournament completes
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -138,50 +139,98 @@ class TournamentManager {
     // Calculate total rounds needed
     const totalRounds = Math.ceil(Math.log2(participants.length));
     
-    // Generate all rounds upfront
-    let currentParticipants = participants;
+    // Create match structure with proper ID mapping
+    let matchCounter = 1;
+    let roundMatchCounts = [];
     
+    // Calculate matches per round (working backwards from final)
+    for (let round = 1; round <= totalRounds; round++) {
+      const participantsInRound = Math.ceil(participants.length / Math.pow(2, round - 1));
+      const matchesInRound = Math.ceil(participantsInRound / 2);
+      roundMatchCounts.push(matchesInRound);
+    }
+
+    // Generate all rounds with proper advancement mapping
     for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber++) {
       const roundMatches = [];
+      const matchesInThisRound = roundMatchCounts[roundNumber - 1];
       
-      // Create matches for this round
-      for (let i = 0; i < currentParticipants.length; i += 2) {
+      for (let matchIndex = 0; matchIndex < matchesInThisRound; matchIndex++) {
+        const matchId = `R${roundNumber}M${matchIndex + 1}`;
+        
+        // Calculate which next round match this winner advances to
+        let nextMatchId = null;
+        let nextSlot = null;
+        
+        if (roundNumber < totalRounds) {
+          const nextMatchIndex = Math.floor(matchIndex / 2);
+          nextMatchId = `R${roundNumber + 1}M${nextMatchIndex + 1}`;
+          nextSlot = matchIndex % 2 === 0 ? 'participant1' : 'participant2';
+        }
+
         const match = {
-          id: uuidv4(),
+          id: matchId,
+          internalId: uuidv4(), // For database uniqueness
           round: roundNumber,
-          participant1: currentParticipants[i],
-          participant2: currentParticipants[i + 1] || null, // Bye if odd number
+          matchNumber: matchIndex + 1,
+          participant1: null,
+          participant2: null,
           score1: null,
           score2: null,
           winner: null,
           status: 'pending',
-          isBye: !currentParticipants[i + 1]
+          isBye: false,
+          advancesTo: nextMatchId ? {
+            matchId: nextMatchId,
+            slot: nextSlot
+          } : null
         };
 
-        if (match.isBye) {
-          match.winner = match.participant1;
-          match.status = 'completed';
+        // For first round, assign actual participants
+        if (roundNumber === 1) {
+          const p1Index = matchIndex * 2;
+          const p2Index = p1Index + 1;
+          
+          match.participant1 = participants[p1Index] || null;
+          match.participant2 = participants[p2Index] || null;
+          
+          // Handle bye
+          if (!match.participant2 && match.participant1) {
+            match.isBye = true;
+            match.winner = match.participant1;
+            match.status = 'completed';
+          }
         }
 
         roundMatches.push(match);
+        matches.push(match);
       }
 
-      matches.push(...roundMatches);
       rounds.push({
         round: roundNumber,
         name: this.getRoundName(roundNumber, totalRounds, participants.length),
         matches: roundMatches,
-        participants: currentParticipants
+        participants: roundNumber === 1 ? participants : []
       });
-
-      // Calculate participants for next round (half of current)
-      currentParticipants = currentParticipants.slice(0, Math.ceil(currentParticipants.length / 2));
     }
+
+    // Create a match lookup map for easy access
+    tournament.matchMap = new Map();
+    matches.forEach(match => {
+      tournament.matchMap.set(match.id, match);
+    });
 
     tournament.matches = matches;
     tournament.rounds = rounds;
     tournament.updatedAt = new Date();
     this.tournaments.set(tournament.id, tournament);
+
+    console.log('✅ Bracket generated with match advancement mapping:');
+    matches.forEach(match => {
+      if (match.advancesTo) {
+        console.log(`  ${match.id} winner → ${match.advancesTo.matchId} (${match.advancesTo.slot})`);
+      }
+    });
 
     return tournament;
   }
@@ -266,7 +315,19 @@ class TournamentManager {
       throw new Error('Tournament not found');
     }
 
-    const match = tournament.matches.find(m => m.id === matchId);
+    // Try to find match by internal ID first (for backward compatibility)
+    let match = tournament.matches.find(m => m.internalId === matchId);
+    
+    // If not found, try by readable match ID
+    if (!match) {
+      match = tournament.matches.find(m => m.id === matchId);
+    }
+    
+    // If still not found, try the old UUID system
+    if (!match) {
+      match = tournament.matches.find(m => m.id === matchId || m.internalId === matchId);
+    }
+
     if (!match) {
       throw new Error('Match not found');
     }
@@ -293,22 +354,47 @@ class TournamentManager {
   }
 
   advanceWinner(tournament, completedMatch) {
-    const currentRound = tournament.rounds.find(r => r.round === completedMatch.round);
+    if (!completedMatch.advancesTo) {
+      // This was the final match - tournament is complete!
+      tournament.status = 'completed';
+      tournament.champion = completedMatch.winner;
+      console.log(`🏆 Tournament completed! Champion: ${completedMatch.winner.name}`);
+      return;
+    }
+
+    // Use the predetermined advancement mapping
+    const nextMatchId = completedMatch.advancesTo.matchId;
+    const nextSlot = completedMatch.advancesTo.slot;
+    
+    // Find the next match using our match map
+    const nextMatch = tournament.matchMap.get(nextMatchId);
+    
+    if (!nextMatch) {
+      console.error(`❌ Next match ${nextMatchId} not found!`);
+      return;
+    }
+
+    // Advance winner to the predetermined slot
+    nextMatch[nextSlot] = completedMatch.winner;
+    
+    console.log(`✅ ${completedMatch.winner.name} advances from ${completedMatch.id} to ${nextMatchId} (${nextSlot})`);
+
+    // Update the round's participants array
     const nextRound = tournament.rounds.find(r => r.round === completedMatch.round + 1);
+    if (nextRound && !nextRound.participants.find(p => p.id === completedMatch.winner.id)) {
+      nextRound.participants.push(completedMatch.winner);
+    }
 
-    if (nextRound) {
-      // Find the next match for this winner
-      const nextMatch = nextRound.matches.find(m => 
-        m.participant1 === null || m.participant2 === null
-      );
+    // Check if the next match is ready to play
+    if (nextMatch.participant1 && nextMatch.participant2) {
+      console.log(`🎮 Match ${nextMatch.id} is ready: ${nextMatch.participant1.name} vs ${nextMatch.participant2.name}`);
+    }
 
-      if (nextMatch) {
-        if (nextMatch.participant1 === null) {
-          nextMatch.participant1 = completedMatch.winner;
-        } else {
-          nextMatch.participant2 = completedMatch.winner;
-        }
-      }
+    // Check if current round is complete
+    const currentRound = tournament.rounds.find(r => r.round === completedMatch.round);
+    const currentRoundComplete = currentRound.matches.every(m => m.status === 'completed');
+    if (currentRoundComplete) {
+      console.log(`✅ Round ${currentRound.round} (${currentRound.name}) completed`);
     }
   }
 
@@ -325,9 +411,16 @@ class TournamentManager {
     );
 
     let champion = null;
-    if (tournament.status === 'completed') {
-      const finalMatch = tournament.matches.find(m => m.round === Math.max(...tournament.rounds.map(r => r.round)));
+    if (tournament.status === 'completed' && tournament.champion) {
+      champion = tournament.champion;
+    } else if (tournament.status === 'completed') {
+      // Fallback: find champion from final match if not set
+      const finalRound = tournament.rounds[tournament.rounds.length - 1];
+      const finalMatch = finalRound?.matches.find(m => m.status === 'completed');
       champion = finalMatch?.winner;
+      if (champion) {
+        tournament.champion = champion; // Set for future use
+      }
     }
 
     return {

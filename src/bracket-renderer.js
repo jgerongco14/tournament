@@ -5,7 +5,8 @@ class BracketRenderer {
         id: tournament.id,
         name: tournament.name,
         format: tournament.format,
-        status: tournament.status
+        status: tournament.status,
+        champion: tournament.champion
       },
       rounds: [],
       participants: tournament.participants,
@@ -42,7 +43,8 @@ class BracketRenderer {
         round: parseInt(roundNumber),
         name: this.getRoundName(parseInt(roundNumber), Object.keys(matchesByRound).length, tournament.participants.length),
         matches: matchesByRound[roundNumber].map(match => ({
-          id: match.id,
+          id: match.internalId || match.id, // Use internalId for frontend compatibility
+          matchId: match.id, // Keep readable match ID for display
           participant1: {
             id: match.participant1?.id,
             name: match.participant1?.name || 'TBD',
@@ -57,7 +59,8 @@ class BracketRenderer {
           score2: match.score2,
           winner: match.winner?.id,
           status: match.status,
-          isBye: match.isBye
+          isBye: match.isBye,
+          advancesTo: match.advancesTo
         }))
       };
       rounds.push(round);

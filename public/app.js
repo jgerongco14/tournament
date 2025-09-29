@@ -484,6 +484,7 @@ class TournamentApp {
 
     renderBracket(bracket) {
         const container = document.getElementById('bracket-visualization');
+        const championContainer = document.getElementById('tournament-champion');
         
         if (!bracket.rounds || bracket.rounds.length === 0) {
             container.innerHTML = `
@@ -493,7 +494,27 @@ class TournamentApp {
                     <button onclick="document.querySelector('[data-tab=\\'manage\\']').click()" class="btn-primary">Go to Manage Tournaments</button>
                 </div>
             `;
+            championContainer.style.display = 'none';
             return;
+        }
+
+        // Display champion if tournament is completed
+        if (bracket.tournament.status === 'completed' && bracket.tournament.champion) {
+            championContainer.style.display = 'block';
+            championContainer.innerHTML = `
+                <div class="champion-celebration">
+                    <div class="champion-crown">👑</div>
+                    <h2 class="champion-title">Tournament Champion</h2>
+                    <div class="champion-name">${bracket.tournament.champion.name}</div>
+                    <div class="champion-details">
+                        <span class="champion-seed">Seed: ${bracket.tournament.champion.seed}</span>
+                        <span class="champion-tournament">${bracket.tournament.name}</span>
+                    </div>
+                    <div class="champion-celebration-text">🎉 Congratulations! 🎉</div>
+                </div>
+            `;
+        } else {
+            championContainer.style.display = 'none';
         }
 
         container.innerHTML = bracket.rounds.map(round => `
@@ -511,7 +532,11 @@ class TournamentApp {
         const isBye = match.isBye;
 
         return `
-            <div class="bracket-match ${match.status}">
+            <div class="bracket-match ${match.status}" data-match-id="${match.matchId || match.id}">
+                <div class="match-header">
+                    <span class="match-id">${match.matchId || 'Match'}</span>
+                    ${match.advancesTo ? `<span class="advances-to">Winner → ${match.advancesTo.matchId}</span>` : '<span class="final-match">Final Match</span>'}
+                </div>
                 <div class="bracket-participant ${match.winner === participant1?.id ? 'winner' : ''}">
                     <span class="bracket-participant-name">${participant1?.name || 'TBD'}</span>
                     <span class="bracket-participant-score">${match.score1 !== null ? match.score1 : ''}</span>
@@ -522,7 +547,7 @@ class TournamentApp {
                         <span class="bracket-participant-score">${match.score2 !== null ? match.score2 : ''}</span>
                     </div>
                 ` : ''}
-                ${!isCompleted && !isBye ? `
+                ${!isCompleted && !isBye && participant1?.name !== 'TBD' && participant2?.name !== 'TBD' ? `
                     <div class="bracket-match-actions">
                         <button onclick="app.openMatchModal('${match.id}', '${participant1?.name || 'TBD'}', '${participant2?.name || 'TBD'}')" class="btn-primary">Submit Result</button>
                     </div>
