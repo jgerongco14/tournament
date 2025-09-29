@@ -232,7 +232,24 @@ class TournamentManager {
       }
     });
 
+    // Process byes automatically
+    this.processByes(tournament);
+
     return tournament;
+  }
+
+  processByes(tournament) {
+    // Find all completed bye matches and advance their winners
+    const byeMatches = tournament.matches.filter(m => m.isBye && m.status === 'completed');
+    
+    byeMatches.forEach(match => {
+      console.log(`Processing bye: ${match.winner.name} advances from ${match.id}`);
+      this.advanceWinner(tournament, match);
+    });
+    
+    // Save the updated tournament
+    tournament.updatedAt = new Date();
+    this.tournaments.set(tournament.id, tournament);
   }
 
   getRoundName(roundNumber, totalRounds, totalParticipants) {
@@ -402,7 +419,62 @@ class TournamentManager {
     const currentRoundComplete = currentRound.matches.every(m => m.status === 'completed');
     if (currentRoundComplete) {
       console.log(`✅ Round ${currentRound.round} (${currentRound.name}) completed`);
+      
+      // Check next round for potential byes
+      this.checkForNewByes(tournament, completedMatch.round + 1);
     }
+  }
+
+  checkForNewByes(tournament, roundNumber) {
+    const round = tournament.rounds.find(r => r.round === roundNumber);
+    if (!round) return;
+
+    // Find matches with only one participant
+    const singleParticipantMatches = round.matches.filter(m => 
+      m.status === 'pending' && 
+      ((m.participant1 && !m.participant2) || (!m.participant1 && m.participant2))
+    );
+
+    singleParticipantMatches.forEach(match => {
+      // Check if all the matches that could provide an opponent are completed
+      const allPossibleOpponentsDetermined = this.areAllOpponentsForMatchDetermined(tournament, match, roundNumber);
+      
+      if (allPossibleOpponentsDetermined) {
+        const winner = match.participant1 || match.participant2;
+        
+        // Convert to bye
+        match.isBye = true;
+        match.participant1 = winner;
+        match.participant2 = null;
+        match.winner = winner;
+        match.status = 'completed';
+        match.score1 = 0;
+        match.score2 = 0;
+        
+        console.log(`🎯 Auto-bye created: ${winner.name} advances from ${match.id} (no opponent available)`);
+        
+        // Recursively advance this bye winner
+        this.advanceWinner(tournament, match);
+      }
+    });
+  }
+
+  areAllOpponentsForMatchDetermined(tournament, targetMatch, roundNumber) {
+    // For a match in round N, check if all matches in round N-1 that could provide
+    // participants to this match are completed
+    
+    if (roundNumber === 1) return true; // First round, no previous matches
+    
+    const previousRound = tournament.rounds.find(r => r.round === roundNumber - 1);
+    if (!previousRound) return true;
+    
+    // Find which previous round matches feed into this match
+    const feedingMatches = previousRound.matches.filter(m => 
+      m.advancesTo && m.advancesTo.matchId === targetMatch.id
+    );
+    
+    // All feeding matches must be completed
+    return feedingMatches.every(m => m.status === 'completed');
   }
 
   getTournamentStatus(tournamentId) {
