@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Bracket System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🏆 Tournament Bracket System</h1>
+            <p>Create and manage tournaments with beautiful bracket visualizations</p>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="tab-button active" data-tab="create">Create Tournament</button>
+            <button class="tab-button" data-tab="manage">Manage Tournaments</button>
+            <button class="tab-button" data-tab="bracket">View Bracket</button>
+            <button class="tab-button" data-tab="statistics">Statistics</button>
+        </nav>
+
+        <!-- Create Tournament Tab -->
+        <div id="create" class="tab-content active">
+            <div class="form-container">
+                <h2>Create New Tournament</h2>
+                <form id="tournament-form">
+                    <div class="form-group">
+                        <label for="tournament-name">Tournament Name</label>
+                        <input type="text" id="tournament-name" required placeholder="Enter tournament name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tournament-format">Format</label>
+                        <select id="tournament-format" required>
+                            <option value="">Select format</option>
+                            <option value="single-elimination">Single Elimination</option>
+                            <option value="double-elimination">Double Elimination</option>
+                            <option value="round-robin">Round Robin</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="seeding">Seeding</label>
+                        <select id="seeding">
+                            <option value="random">Random</option>
+                            <option value="manual">Manual</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Participants</label>
+                        
+                        <!-- Bulk Input Options -->
+                        <div class="bulk-input-options">
+                            <div class="input-method-tabs">
+                                <button type="button" class="input-tab active" data-method="individual">Individual</button>
+                                <button type="button" class="input-tab" data-method="bulk">Bulk Input</button>
+                                <button type="button" class="input-tab" data-method="csv">CSV Import</button>
+                                <button type="button" class="input-tab" data-method="generate">Quick Generate</button>
+                            </div>
+
+                            <!-- Individual Input (Default) -->
+                            <div id="individual-input" class="input-method active">
+                                <div id="participants-list">
+                                    <div class="participant-input">
+                                        <input type="text" placeholder="Participant name" class="participant-name">
+                                        <input type="number" placeholder="Seed (optional)" class="participant-seed" min="1">
+                                        <button type="button" class="remove-participant">Remove</button>
+                                    </div>
+                                </div>
+                                <button type="button" id="add-participant" class="btn-secondary">Add Participant</button>
+                            </div>
+
+                            <!-- Bulk Text Input -->
+                            <div id="bulk-input" class="input-method">
+                                <textarea id="bulk-participants" placeholder="Enter participant names, one per line:&#10;Team Alpha&#10;Team Beta&#10;Team Gamma&#10;Team Delta&#10;Team Echo&#10;Team Foxtrot"></textarea>
+                                <div class="bulk-options">
+                                    <label>
+                                        <input type="checkbox" id="auto-seed"> Auto-assign seeds (1, 2, 3...)
+                                    </label>
+                                </div>
+                                <button type="button" id="parse-bulk-input" class="btn-primary">Parse Participants</button>
+                            </div>
+
+                            <!-- CSV Import -->
+                            <div id="csv-input" class="input-method">
+                                <div class="csv-upload">
+                                    <input type="file" id="csv-file" accept=".csv,.txt" style="display: none;">
+                                    <button type="button" id="select-csv-file" class="btn-secondary">Choose CSV File</button>
+                                    <span id="csv-file-name">No file selected</span>
+                                </div>
+                                <div class="csv-format-help">
+                                    <h4>CSV Format:</h4>
+                                    <p>Expected format: <code>Name,Seed</code> or just <code>Name</code></p>
+                                    <pre>Team Alpha,1
+Team Beta,2
+Team Gamma,3</pre>
+                                </div>
+                                <button type="button" id="parse-csv" class="btn-primary" disabled>Import CSV</button>
+                            </div>
+
+                            <!-- Quick Generate -->
+                            <div id="generate-input" class="input-method">
+                                <div class="generate-options">
+                                    <label for="generate-count">Number of participants:</label>
+                                    <input type="number" id="generate-count" min="2" max="64" value="8">
+                                    
+                                    <label for="generate-prefix">Name prefix:</label>
+                                    <input type="text" id="generate-prefix" value="Team" placeholder="Team, Player, etc.">
+                                    
+                                    <label for="generate-start">Starting number:</label>
+                                    <input type="number" id="generate-start" value="1" min="1">
+                                    
+                                    <label>
+                                        <input type="checkbox" id="generate-seeds" checked> Auto-assign seeds
+                                    </label>
+                                </div>
+                                <button type="button" id="generate-participants" class="btn-primary">Generate Participants</button>
+                            </div>
+                        </div>
+
+                        <!-- Participants Preview -->
+                        <div id="participants-preview" class="participants-preview hidden">
+                            <h4>Participants Preview (<span id="participant-count">0</span>):</h4>
+                            <div id="participants-preview-list"></div>
+                            <button type="button" id="clear-participants" class="btn-secondary">Clear All</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary">Create Tournament</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Manage Tournaments Tab -->
+        <div id="manage" class="tab-content">
+            <div class="tournaments-container">
+                <h2>Tournament Management</h2>
+                <div id="tournaments-list" class="tournaments-grid">
+                    <!-- Tournaments will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- View Bracket Tab -->
+        <div id="bracket" class="tab-content">
+            <div class="bracket-container">
+                <h2>Tournament Bracket</h2>
+                <div class="bracket-controls">
+                    <select id="bracket-tournament-select">
+                        <option value="">Select a tournament</option>
+                    </select>
+                    <button id="load-bracket" class="btn-primary">Load Bracket</button>
+                </div>
+                <div id="bracket-visualization" class="bracket-visualization">
+                    <!-- Bracket will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Tab -->
+        <div id="statistics" class="tab-content">
+            <div class="statistics-container">
+                <h2>Tournament Statistics</h2>
+                <div class="statistics-controls">
+                    <select id="stats-tournament-select">
+                        <option value="">Select a tournament</option>
+                    </select>
+                    <button id="load-statistics" class="btn-primary">Load Statistics</button>
+                </div>
+                <div id="statistics-content" class="statistics-content">
+                    <!-- Statistics will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Match Result Modal -->
+        <div id="match-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3>Submit Match Result</h3>
+                <form id="match-result-form">
+                    <div class="match-participants">
+                        <div class="participant">
+                            <label id="participant1-name"></label>
+                            <input type="number" id="score1" min="0" placeholder="Score">
+                        </div>
+                        <div class="vs">VS</div>
+                        <div class="participant">
+                            <label id="participant2-name"></label>
+                            <input type="number" id="score2" min="0" placeholder="Score">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary">Submit Result</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
